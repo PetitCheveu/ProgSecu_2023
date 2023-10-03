@@ -114,13 +114,19 @@ def run_watchdog():
     
     # Lancer le dispatcher
     pid = os.fork()
-    if pid == 0:
+    if pid < 0:
+        print("fork() impossible")
+        os.abort()
+    elif pid == 0:
         run_dispatcher()
         os._exit(0)
     else:
         # Lancer le worker
         worker_pid = os.fork()
-        if worker_pid == 0:
+        if worker_pid < 0:
+            print("fork() impossible")
+            os.abort()
+        elif worker_pid == 0:
             run_worker()
             os._exit(0)
         
