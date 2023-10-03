@@ -1,88 +1,150 @@
-from multiprocessing import shared_memory, Process, Pipe
 import os
 import time
-import signal
+import socket
+import json
 
-# Gestionnaire de signaux pour le watchdog
-def signal_handler(signum, frame):
-    global received_signal
-    if signum == signal.SIGUSR1:
-        print(f"Watchdog received signal SIGUSR1. Sending back SIGUSR2.")
-        os.kill(os.getppid(), signal.SIGUSR2)
-    elif signum == signal.SIGUSR2:
-        print(f"Watchdog received signal SIGUSR2.")
-        received_signal = True
+def run_client():
+    print("Client started.")
+    
+    # Se connecter au serveur principal sur le port 2222
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(('localhost', 2222))
+    
+    # Envoyer une requête de type
+    client_socket.sendall(b"requetetype1")
+    
+    # Recevoir un numéro de port pour le serveur secondaire
+    port_data = client_socket.recv(1024)
+    secondary_port = int(port_data.decode())
+    
+    # Se connecter au serveur secondaire
+    secondary_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    secondary_socket.connect(('localhost', secondary_port))
+    
+    # Échanger des informations
+    secondary_socket.sendall(b"Hello, secondary server!")
+    data = secondary_socket.recv(1024)
+    print(f"Client received from secondary server: {data.decode()}")
+    
+    # Fermer les connexions
+    secondary_socket.close()
+    client_socket.close()
 
-# Worker (Serveur secondaire)
-def worker(shm_name, conn):
-    try:
-        existing_shm = shared_memory.SharedMemory(name=shm_name)
-        buffer = existing_shm.buf
-        print(f"Worker received from SHM: {buffer[:4].tobytes().decode('utf-8')}")
-
-        for _ in range(3):
-            msg = conn.recv()
-            print(f"Worker received from Pipe: {msg}. Sending back 'pong'.")
-            conn.send("pong")
-
-        existing_shm.close()
-    except Exception as e:
-        print(f"Worker encountered an error: {e}. Terminating.")
-        os._exit(1)
-
-# Dispatcher (Serveur principal)
-def dispatcher():
-    try:
-        # Shared Memory Segment
-        shm = shared_memory.SharedMemory(create=True, size=10)
-        buffer = shm.buf
-        buffer[:4] = b'ping'
-
-        # Named Pipe for synchronization
-        parent_conn, child_conn = Pipe()
-
-        p = Process(target=worker, args=(shm.name, child_conn))
-        p.start()
-
-        for _ in range(3):
-            print(f"Dispatcher sending 'ping' to Worker.")
-            parent_conn.send("ping")
-            print(f"Dispatcher received: {parent_conn.recv()}")
-
-        p.join()
-
-        shm.unlink()
-        shm.close()
-    except Exception as e:
-        print(f"Dispatcher encountered an error: {e}. Terminating.")
-        os._exit(1)
-
-# Watch-dog (Processus de surveillance)
-def watch_dog():
-    global received_signal
-    received_signal = False
-    try:
-        # Configuration du gestionnaire de signaux
-        signal.signal(signal.SIGUSR1, signal_handler)
-        signal.signal(signal.SIGUSR2, signal_handler)
-
-        p = Process(target=dispatcher)
-        p.start()
-
-        # Envoie d'un signal SIGUSR1 au dispatcher
-        print(f"Watchdog sending SIGUSR1 to Dispatcher.")
-        os.kill(p.pid, signal.SIGUSR1)
+# Fonctions pour le dispatcher (serveur principal)
+def run_dispatcher():
+    print("Dispatcher started.")
+    
+    # Utiliser un fichier comme mémoire partagée
+    with open('shared_memory.txt', 'w') as f:
+        f.write("ping")
+    
+    # Tube nommé pour la synchronisation
+    fifo_out = os.open('dwtube1', os.O_WRONLY)
+    
+    for _ in range(3):
+        os.write(fifo_out, b'ping')
+        with open('wdtube1', 'r') as fifo_in:
+            print(f"Dispatcher received: {fifo_in.read().strip()}")
+    
+    # Créer un socket pour accepter les connexions du client
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', 2222))
+    server_socket.listen(1)
+    
+    conn, addr = server_socket.accept()
+    print(f"Dispatcher connected to client at {addr}")
+    
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            break
+        print(f"Dispatcher received: {data.decode()}")
         
-        # Vérification de l'état du signal
-        time.sleep(1)  # Laisser le temps au gestionnaire de signaux de traiter
-        if not received_signal:
-            print("Watchdog did not receive SIGUSR2. Something might be wrong. Terminating dispatcher.")
-            p.terminate()
+        # Envoyer le numéro de port du serveur secondaire au client
+        conn.sendall(b"2223")
+    
+    conn.close()
 
-        p.join()
-    except Exception as e:
-        print(f"Watchdog encountered an error: {e}. Terminating.")
+# Fonctions pour le worker (serveur secondaire)
+def run_worker():
+    print("Worker started.")
+    
+    # Lire depuis la mémoire partagée
+    with open('shared_memory.txt', 'r') as f:
+        print(f"Worker received from Shared Memory: {f.read().strip()}")
+    
+    fifo_in = os.open('dwtube1', os.O_RDONLY)
+    
+    for _ in range(3):
+        msg = os.read(fifo_in, 4).decode()
+        print(f"Worker received from Dispatcher: {msg}")
+        with open('wdtube1', 'w') as fifo_out:
+            fifo_out.write("pong")
+    
+    os.close(fifo_in)
+
+    # Créer un socket pour accepter les connexions du client
+    worker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    worker_socket.bind(('localhost', 2223))
+    worker_socket.listen(1)
+    
+    conn, addr = worker_socket.accept()
+    print(f"Worker connected to client at {addr}")
+    
+    while True:
+        data = conn.recv(1024)
+        if not data:
+            break
+        print(f"Worker received: {data.decode()}")
+        
+        # Envoyer des données de réponse au client
+        conn.sendall(b"Hello, client!")
+    
+    conn.close()
+
+# Fonctions pour le watchdog
+def run_watchdog():
+    print("Watchdog started.")
+    
+    # Créer des tubes nommés
+    if not os.path.exists('dwtube1'):
+        os.mkfifo('dwtube1')
+    if not os.path.exists('wdtube1'):
+        os.mkfifo('wdtube1')
+    
+    # Lancer le dispatcher
+    pid = os.fork()
+    if pid == 0:
+        run_dispatcher()
+        os._exit(0)
+    else:
+        # Lancer le worker
+        worker_pid = os.fork()
+        if worker_pid == 0:
+            run_worker()
+            os._exit(0)
+        
+        # Watchdog observe les processus (ici, il attend simplement)
+        time.sleep(10)
+        print("Watchdog: Checking process health.")
+        
+        # Nettoyage : supprimer les tubes nommés et la mémoire partagée
+        if os.path.exists('dwtube1'):
+            os.remove('dwtube1')
+        if os.path.exists('wdtube1'):
+            os.remove('wdtube1')
+        if os.path.exists('shared_memory.txt'):
+            os.remove('shared_memory.txt')
 
 if __name__ == '__main__':
-    parent_pid = os.getpid()
-    watch_dog()
+    print("1: Run Watchdog (and servers)")
+    print("2: Run Client")
+    choice = input("Choose an option: ")
+    
+    if choice == '1':
+        run_watchdog()
+    elif choice == '2':
+        run_client()
+    else:
+        print("Invalid option.")
+
