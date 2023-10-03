@@ -2,6 +2,7 @@ import os
 import time
 import socket
 import json
+import random
 
 def run_client():
     print("Client started.")
@@ -11,7 +12,12 @@ def run_client():
     client_socket.connect(('localhost', 2222))
     
     # Envoyer une requête de type
-    client_socket.sendall(b"requetetype1")
+    requete = random.randint(1, 2)
+    
+    if requete == 1 :
+        client_socket.sendall(b"requetetype1")
+    elif requete == 2 : 
+        client_socket.sendall(b"requetetype2")
     
     # Recevoir un numéro de port pour le serveur secondaire
     port_data = client_socket.recv(1024)
