@@ -4,36 +4,81 @@ import socket
 import json
 import random
 
+# def run_client():
+#     print("Client started.")
+    
+#     # Se connecter au serveur principal sur le port 2222
+#     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#     client_socket.connect(('localhost', 2222))
+    
+#     # Envoyer une requête de type
+#     requete = random.randint(1, 2)
+    
+#     if requete == 1 :
+#         client_socket.sendall(b"requetetype1")
+#     elif requete == 2 : 
+#         client_socket.sendall(b"requetetype2")
+    
+#     # Recevoir un numéro de port pour le serveur secondaire
+#     port_data = client_socket.recv(1024)
+#     secondary_port = int(port_data.decode())
+    
+#     # Se connecter au serveur secondaire
+#     secondary_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#     secondary_socket.connect(('localhost', secondary_port))
+    
+#     # Échanger des informations
+#     secondary_socket.sendall(b"Hello, secondary server!")
+#     data = secondary_socket.recv(1024)
+#     print(f"Client received from secondary server: {data.decode()}")
+    
+#     # Fermer les connexions
+#     secondary_socket.close()
+#     client_socket.close()
+
 def run_client():
     print("Client started.")
-    
-    # Se connecter au serveur principal sur le port 2222
+
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(('localhost', 2222))
-    
-    # Envoyer une requête de type
-    requete = random.randint(1, 2)
-    
-    if requete == 1 :
-        client_socket.sendall(b"requetetype1")
-    elif requete == 2 : 
-        client_socket.sendall(b"requetetype2")
-    
-    # Recevoir un numéro de port pour le serveur secondaire
-    port_data = client_socket.recv(1024)
-    secondary_port = int(port_data.decode())
-    
-    # Se connecter au serveur secondaire
-    secondary_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    secondary_socket.connect(('localhost', secondary_port))
-    
-    # Échanger des informations
-    secondary_socket.sendall(b"Hello, secondary server!")
-    data = secondary_socket.recv(1024)
-    print(f"Client received from secondary server: {data.decode()}")
-    
-    # Fermer les connexions
-    secondary_socket.close()
+    while True:
+        # Se connecter au serveur principal sur le port 2222
+        try:
+            # Envoyer une requête de type
+            requete = random.randint(1, 2)
+            if requete == 1:
+                requete_type = "requetetype1"
+            else:
+                requete_type = "requetetype2"
+
+            client_socket.sendall(requete_type.encode())
+
+            # Recevoir un numéro de port pour le serveur secondaire
+            port_data = client_socket.recv(1024)
+            secondary_port = int(port_data.decode())
+
+            # Se connecter au serveur secondaire
+            secondary_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            secondary_socket.connect(('localhost', secondary_port))
+
+            # Échanger des informations
+            secondary_socket.sendall(b"Hello, secondary server!")
+            data = secondary_socket.recv(1024)
+            print(f"Client received from secondary server: {data.decode()}")
+
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+
+        finally:
+            # Fermer la connexion au serveur secondaire
+            secondary_socket.close()
+
+        # Demander à l'utilisateur s'il souhaite envoyer une autre requête
+        user_input = input("Voulez-vous envoyer une autre requête ? (Oui/Non): ")
+        if user_input.lower() != "oui" and user_input.lower() != "o":
+            break
+
+    # Fermer la connexion au serveur principal
     client_socket.close()
 
 # Fonctions pour le dispatcher (serveur principal)
@@ -58,16 +103,19 @@ def run_dispatcher():
     server_socket.listen(1)
     
     conn, addr = server_socket.accept()
+    server_socket.close()
     print(f"Dispatcher connected to client at {addr}")
     
     while True:
-        data = conn.recv(1024)
-        if not data:
+        try:
+            data = conn.recv(1024)
+            if not data:
+                break
+            print(f"Dispatcher received: {data.decode()}")
+            conn.sendall(b"2223")
+        except ConnectionResetError:
+            print("Client disconnected unexpectedly.")
             break
-        print(f"Dispatcher received: {data.decode()}")
-        
-        # Envoyer le numéro de port du serveur secondaire au client
-        conn.sendall(b"2223")
     
     conn.close()
 
