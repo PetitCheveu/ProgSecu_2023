@@ -45,9 +45,9 @@ Utilisation de signaux : La question 3.c suggère d'utiliser des signaux pour la
 ## Protocole d'échanges (de messages)
 ### Solution idéale
 1) Requête du client au serveur principal (fait)
-2) Délégation de traitement du serveur principal au serveur secondaire (fait)
+2) Délégation de traitement du serveur principal au serveur secondaire (?)
 3) Acceptation de la requête (début traitement) + transmission d'infos du serveur secondaire au serveur principal à destination du client (N° port ...) (?)
-4) Transmission de l'adresse, IP X N° port du client (?)
+4) Transmission de l'adresse, IP X N° port du client (fait)
 5) Client transmet ses données au serveur secondaire (fait)
 6) Serveur secondaire envoie résultat de requête au client (fait)
 7) Serveurs secondaires informe serveur principal de la fin de traitement de requête.
