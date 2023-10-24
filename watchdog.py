@@ -13,6 +13,9 @@ import dispatcher
 def run_watchdog():
     logging.info("Watchdog started.")
     
+    # if os.path.exists('stop_tube'):
+    #     os.remove('stop_tube')
+    
     if not os.path.exists('dwtube1'):
         os.mkfifo('dwtube1')
     if not os.path.exists('wdtube1'):

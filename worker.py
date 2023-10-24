@@ -32,6 +32,9 @@ def run_worker():
     worker_socket.bind(('localhost', 2223))
     worker_socket.listen(1)
     
+    conn = None
+    connected = False
+    
     while True:
         try:
             stop_msg = os.read(stop_fifo_in, 4).decode()
@@ -41,17 +44,39 @@ def run_worker():
         except BlockingIOError:
             pass
 
-        ready, _, _ = select.select([worker_socket], [], [], 1)
-        if ready:
-            conn, addr = worker_socket.accept()
-            logging.info(f"Etape 5 : Worker connected to client at {addr}")
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                logging.info(f"Etape 5 : Worker received: {data.decode()}")
+        with open('dwtube1', 'r') as fifo_out:
+            logging.info(f"Worker received from Dispatcher: {fifo_out.read().strip()}")
+
+        with open('shared_memory.txt', 'r') as f :
+            question = f.read()
+        if question == "Are you free for a connexion ?" :
+            logging.info(f"Etape 2 : Worker is asked for disponibility")
+        
+            if connected == False : 
+                with open('shared_memory.txt', 'w') as f :
+                    f.write("Yes")
+                with open('wdtube1', 'w') as fifo_in:
+                    fifo_in.write('pong')     
                 
-                conn.sendall(b"Hello, client!")
+                ready, _, _ = select.select([worker_socket], [], [], 1)
+                if ready:
+                    conn, addr = worker_socket.accept()
+                    logging.info(f"Etape 5 : Worker connected to client at {addr}")
+                    connected = True
+                    while True:
+                        data = conn.recv(1024)
+                        if not data:
+                            break
+                        logging.info(f"Etape 5 : Worker received: {data.decode()}")
+                        
+                        conn.sendall(b"Hello, client!")
+                        connected = False
+            else : 
+                with open('shared_memory.txt', 'w') as f :
+                    f.write("No")
+                with open('wdtube1', 'w') as fifo_in:
+                    fifo_in.write('pong')
     
     worker_socket.close()
-    conn.close()
+    if conn is not None : 
+        conn.close()
