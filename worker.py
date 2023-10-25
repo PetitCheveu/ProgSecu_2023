@@ -13,25 +13,25 @@ def run_worker():
     logging.info("Worker started.")
     
     utils.touch('shared_memory.txt')
-    with open('shared_memory.txt', 'r') as f:
-        logging.info(f"Worker received from Shared Memory: {f.read().strip()}")
+    # with open('shared_memory.txt', 'r') as f:
+    #     logging.info(f"Worker read: {f.read().strip()}")
     
-    fifo_in = os.open('dwtube1', os.O_RDONLY)
-    stop_fifo_in = os.open('stop_tube', os.O_RDONLY | os.O_NONBLOCK)
+    # fifo_in = os.open('dwtube1', os.O_RDONLY)
     
-    for _ in range(3):
-        msg = os.read(fifo_in, 4).decode()
-        logging.info(f"Worker received from Dispatcher: {msg}")
-        with open('wdtube1', 'w') as fifo_out:
-            fifo_out.write("pong")
+    # for _ in range(3):
+    #     msg = os.read(fifo_in, 4).decode()
+    #     logging.info(f"Worker received from Dispatcher: {msg}")
+    #     with open('wdtube1', 'w') as fifo_out:
+    #         fifo_out.write("pong")
     
-    os.close(fifo_in)
+    # os.close(fifo_in)
     
     conn = None
     connected = False
     
     while True:
         try:
+            stop_fifo_in = os.open('stop_tube', os.O_RDONLY | os.O_NONBLOCK)
             stop_msg = os.read(stop_fifo_in, 4).decode()
             if stop_msg == 'stop':
                 logging.info("Worker received stop signal. Exiting.")
@@ -90,6 +90,14 @@ def run_worker():
             else : 
                 with open('shared_memory.txt', 'w') as f :
                     f.write("No")
+                with open('wdtube1', 'w') as fifo_in:
+                    fifo_in.write('pong')
+                    
+        elif question == "Are you done ?":
+            if connected == False : 
+                logging.info(f"Worker read: {question}")
+                with open('shared_memory.txt', 'w') as f :
+                    f.write("Yes")
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
 

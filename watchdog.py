@@ -38,12 +38,13 @@ def run_watchdog():
             os.abort()
         elif worker_pid == 0:
             worker.run_worker()
+            stop_fifo_in = os.open('stop_tube', os.O_RDONLY | os.O_NONBLOCK)
             os._exit(0)
         else:
-            time.sleep(30)
+            time.sleep(20)
             with open('stop_tube', 'w') as stop_fifo:
                 stop_fifo.write('stop')
-                logging.info("Watchdog: Checking process health.")
+                logging.info("Watchdog: Closing process healthly.")
         
                 if os.path.exists('dwtube1'):
                     os.remove('dwtube1')
@@ -51,3 +52,6 @@ def run_watchdog():
                     os.remove('wdtube1')
                 if os.path.exists('shared_memory.txt'):
                     os.remove('shared_memory.txt')
+            if os.path.exists('stop_tube'):
+                os.remove('stop_tube')
+                
