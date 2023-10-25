@@ -36,10 +36,7 @@ def run_dispatcher():
             if not data:
                 break
             logging.info(f"Etape 1 : Dispatcher received: {data.decode()}")
-            
-            # with open('wdtube1', 'r') as fifo_in:
-            #     logging.info(f"Dispatcher received: {fifo_in.read().strip()}")
-                
+                            
             with open('shared_memory.txt', 'w') as f :
                 f.write("Are you free for a connexion ?")
             

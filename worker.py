@@ -7,6 +7,7 @@ import select
 import logging
 
 import utils
+import datetime
 
 def run_worker():
     logging.info("Worker started.")
@@ -25,12 +26,6 @@ def run_worker():
             fifo_out.write("pong")
     
     os.close(fifo_in)
-
-    worker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    worker_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    worker_socket.setblocking(0)
-    worker_socket.bind(('localhost', 2223))
-    worker_socket.listen(1)
     
     conn = None
     connected = False
@@ -58,25 +53,45 @@ def run_worker():
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')     
                 
+                worker_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                worker_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                worker_socket.setblocking(0)
+                worker_socket.bind(('localhost', 2223))
+                worker_socket.listen(1)
+                
                 ready, _, _ = select.select([worker_socket], [], [], 1)
                 if ready:
+    
                     conn, addr = worker_socket.accept()
                     logging.info(f"Etape 5 : Worker connected to client at {addr}")
                     connected = True
                     while True:
                         data = conn.recv(1024)
+                        request = data.decode()
                         if not data:
                             break
-                        logging.info(f"Etape 5 : Worker received: {data.decode()}")
+                        logging.info(f"Etape 5 : Worker received: {request}")
                         
-                        conn.sendall(b"Hello, client!")
-                        connected = False
+                        now = datetime.datetime.now()
+                        message = "no response"
+                        if request == "Hello, what time is it ?" : 
+                            response = now.strftime("%H:%M:%S")
+                            message = "Hello, client! it is " + response
+                            message = message.encode('utf-8')
+                        elif request == "Hello, what's the date today ?":
+                            response = now.strftime("%d/%m/%Y")
+                            message = "Hello, client! we are the " + response
+                            message = message.encode('utf-8')
+                        conn.sendall(message)
+                worker_socket.close()
+                if conn is not None : 
+                    conn.close()
+                connected = False
             else : 
                 with open('shared_memory.txt', 'w') as f :
                     f.write("No")
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
+
     
-    worker_socket.close()
-    if conn is not None : 
-        conn.close()
+        

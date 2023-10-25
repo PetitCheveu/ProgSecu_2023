@@ -33,9 +33,9 @@ def run_client():
                 logging.info("Etape 5 : Client connected to secondary server.")
 
                 if requete_type == "requetetype1" :
-                    secondary_socket.sendall(b"Hello, secondary server!")
+                    secondary_socket.sendall(b"Hello, what time is it ?")
                 else : 
-                    secondary_socket.sendall(b"Salut, serveur secondaire!")
+                    secondary_socket.sendall(b"Hello, what's the date today ?")
                 data = secondary_socket.recv(1024)
                 logging.info(f"Etape 6 : Client received from secondary server: {data.decode()}")
             else : 
