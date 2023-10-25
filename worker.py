@@ -13,18 +13,6 @@ def run_worker():
     logging.info("Worker started.")
     
     utils.touch('shared_memory.txt')
-    # with open('shared_memory.txt', 'r') as f:
-    #     logging.info(f"Worker read: {f.read().strip()}")
-    
-    # fifo_in = os.open('dwtube1', os.O_RDONLY)
-    
-    # for _ in range(3):
-    #     msg = os.read(fifo_in, 4).decode()
-    #     logging.info(f"Worker received from Dispatcher: {msg}")
-    #     with open('wdtube1', 'w') as fifo_out:
-    #         fifo_out.write("pong")
-    
-    # os.close(fifo_in)
     
     conn = None
     connected = False
