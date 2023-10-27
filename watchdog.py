@@ -59,16 +59,14 @@ def run_watchdog():
             try:
                 time.sleep(0.1)
                 watchdog_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                watchdog_socket.settimeout(4.0)
                 dispatcher_address = ('localhost', 2224)
                 watchdog_socket.connect(dispatcher_address)
                 logging.info("Press Ctrl+C to close")
 
                 while True:
-                    logging.info("test")
                     choice = random.choice([b"Still running ?", b"Ca fonctionne toujours ?"])
                     watchdog_socket.sendall(choice)
-                    timeout = time.time() + 100000
-                    logging.debug(f"timeout : {timeout}")
                     try : 
                         response = watchdog_socket.recv(1024)
                         response_dispatcher = response.decode()
@@ -76,10 +74,10 @@ def run_watchdog():
                         if response.decode() != "Yes" and response.decode() != "Oui":
                             close_processes(pid, worker_pid)
                             break
-                    except time.time() > timeout :
-                        logging.error("Timeout, restarting the serveur")
+                    except socket.error as e:
+                        logging.error(f"Timeout, restarting the serveur {e}")
                         close_processes(pid, worker_pid)
-                        # restart_serveur()
+                        # restart_serveur() #Ecrire la fonction pour pouvoir relancer tout (peut-être qu'un simple run_watchdog suffit ?)
                         break
                     time.sleep(5)
 

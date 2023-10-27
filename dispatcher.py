@@ -31,7 +31,6 @@ def run_dispatcher():
                 connexion_watchdog.sendall(b"Yes")
             elif watchdog_question == "Ca fonctionne toujours ?" : 
                 connexion_watchdog.sendall(b"Oui")
-            
         except Exception as e : 
             logging.error(f"An error occurred: {e}")
         try:
@@ -43,11 +42,21 @@ def run_dispatcher():
         except OSError as e:
             logging.warning(f"Port 2222 is already in use. Closing the previous socket and retrying.")
             logging.info("Dispatcher process terminated.")
-            time.sleep(1)  # Wait for a short time before retrying
             break
             
-        conn, addr = server_socket.accept()
-        server_socket.close()
+        conn, addr = None, None
+        start_time = time.time()  # Définir le temps de départ
+        while conn is None and (time.time() - start_time) < 4:  # Attendre jusqu'à 4 secondes
+            ready_sockets, _, _ = select.select([server_socket], [], [], 4.0)
+            if ready_sockets:
+                conn, addr = server_socket.accept()
+                break  # Sortir de la boucle si une connexion est établie
+            else:
+                logging.info("Waiting for client request...")
+
+        if conn is None:
+            logging.info("No client request received in 4 seconds. Restarting the loop.")
+            continue
         logging.info(f"Etape 1 : Dispatcher connected to client at {addr}")
         try:
             data = conn.recv(1024)
@@ -69,8 +78,11 @@ def run_dispatcher():
             if answer == "Yes" : 
                 logging.info(f"Etape 3 : Worker is free to work")
                 conn.sendall(b"2223")
-                server_socket.close()
-                conn.close()
+                try:
+                    conn.close()
+                    server_socket.close()
+                except Exception as e:
+                    logging.debug(e)
                 
                 
                 with open('shared_memory.txt', 'w') as f :
@@ -92,9 +104,12 @@ def run_dispatcher():
             if answer == "No" :
                 logging.info(f"Etape 3 : Worker is too busy to work")
                 conn.sendall(b"-1")
-                server_socket.close()
-                conn.close()
-                
+                try:
+                    conn.close()
+                    server_socket.close()
+                except Exception as e:
+                    logging.debug(e)
+        
         except ConnectionResetError:
             logging.debug("Client disconnected unexpectedly.")
             break
