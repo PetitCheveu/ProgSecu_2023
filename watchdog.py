@@ -22,7 +22,6 @@ def close_processes(pid, worker_pid):
     
     if os.path.exists('shared_memory.txt'):
         os.remove('shared_memory.txt')
-    exit(0)
     
 def close_process(pid, type_process):
     os.kill(pid, signal.SIGTERM)
@@ -31,6 +30,8 @@ def close_process(pid, type_process):
 def delete_tube(tube):
     if os.path.exists(tube):
         os.remove(tube)
+
+
 
 def run_watchdog():
     logging.info("Watchdog started.")
@@ -65,7 +66,7 @@ def run_watchdog():
                 logging.info("Press Ctrl+C to close")
 
                 while True:
-                    choice = random.choice([b"Still running ?", b"Ca fonctionne toujours ?"])
+                    choice = random.choice([b"Still running ?", b"Tu fonctionnes toujours ?", b"Try a refresh"])
                     watchdog_socket.sendall(choice)
                     try : 
                         response = watchdog_socket.recv(1024)
@@ -73,16 +74,18 @@ def run_watchdog():
                         logging.info(f"Watchdog received from Dispatcher : {response_dispatcher}")
                         if response.decode() != "Yes" and response.decode() != "Oui":
                             close_processes(pid, worker_pid)
-                            break
+                            run_watchdog()
                     except socket.error as e:
                         logging.error(f"Timeout, restarting the serveur {e}")
                         close_processes(pid, worker_pid)
+                        run_watchdog()
                         # restart_serveur() #Ecrire la fonction pour pouvoir relancer tout (peut-être qu'un simple run_watchdog suffit ?)
                         break
                     time.sleep(5)
 
             except KeyboardInterrupt:
                 close_processes(pid, worker_pid)
+                exit(0)
             except Exception as e:
                 logging.error(f"An error occurred during termination: {e}")
             finally:

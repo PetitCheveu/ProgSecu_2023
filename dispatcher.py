@@ -29,8 +29,10 @@ def run_dispatcher():
             logging.info(f'Dispatcher received: {watchdog_question}')
             if watchdog_question == "Still running ?" : 
                 connexion_watchdog.sendall(b"Yes")
-            elif watchdog_question == "Ca fonctionne toujours ?" : 
+            elif watchdog_question == "Tu fonctionnes toujours ?" : 
                 connexion_watchdog.sendall(b"Oui")
+            else : 
+                connexion_watchdog.sendall(b"No")
         except Exception as e : 
             logging.error(f"An error occurred: {e}")
         try:
@@ -46,7 +48,7 @@ def run_dispatcher():
             
         conn, addr = None, None
         start_time = time.time()  # Définir le temps de départ
-        while conn is None and (time.time() - start_time) < 4:  # Attendre jusqu'à 4 secondes
+        while conn is None and (time.time() - start_time) < 1:  # Attendre jusqu'à 4 secondes
             ready_sockets, _, _ = select.select([server_socket], [], [], 4.0)
             if ready_sockets:
                 conn, addr = server_socket.accept()
@@ -54,65 +56,87 @@ def run_dispatcher():
             else:
                 logging.info("Waiting for client request...")
 
+        # if conn is None:
+        #     logging.info("No client, still waiting")
+        #     continue
         if conn is None:
-            logging.info("No client request received in 4 seconds. Restarting the loop.")
-            continue
-        logging.info(f"Etape 1 : Dispatcher connected to client at {addr}")
-        try:
-            data = conn.recv(1024)
-            if not data:
-                break
-            request_from_client = data.decode()
-            logging.info(f"Etape 1 : Dispatcher received: {request_from_client}")
-                            
-            with open('shared_memory.txt', 'w') as f :
-                f.write("Are you free for a connexion ?")
-            
+            logging.info("No client, still waiting")
+
+            # Send a ping to the worker
             with open('dwtube1', 'w') as fifo_out: 
                 fifo_out.write('ping')
-            with open('wdtube1', 'r') as fifo_in:
-                logging.info(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
-            with open('shared_memory.txt', 'r') as f: 
-                answer = f.read()
-            
-            if answer == "Yes" : 
-                logging.info(f"Etape 3 : Worker is free to work")
-                conn.sendall(b"2223")
-                try:
-                    conn.close()
-                    server_socket.close()
-                except Exception as e:
-                    logging.debug(e)
-                
-                
+
+            # Wait for a response from the worker
+            start_time = time.time()
+            timeout = 1  # Wait for 1 second for worker response
+            while (time.time() - start_time) < timeout:
+                with open('wdtube1', 'r') as fifo_in:
+                    response = fifo_in.read().strip()
+                    if response:
+                        if response == "Worker is not answering":
+                            logging.info("Worker is not answering. Notifying the watchdog.")
+                            connexion_watchdog.sendall(b"Worker is not answering")
+                        else:
+                            logging.info(f"Worker response: {response}")
+                        break
+                time.sleep(0.1)
+        if conn is not None:
+            logging.info(f"Etape 1 : Dispatcher connected to client at {addr}")
+            try:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                request_from_client = data.decode()
+                logging.info(f"Etape 1 : Dispatcher received: {request_from_client}")
+                                
                 with open('shared_memory.txt', 'w') as f :
-                    f.write("Are you done ?")
-            
+                    f.write("Are you free for a connexion ?")
+                
                 with open('dwtube1', 'w') as fifo_out: 
                     fifo_out.write('ping')
-                    
                 with open('wdtube1', 'r') as fifo_in:
                     logging.info(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
-                
                 with open('shared_memory.txt', 'r') as f: 
-                    is_worker_done = f.read()
+                    answer = f.read()
                 
-                logging.info(f"Dispatcher read: {is_worker_done}")
-                if is_worker_done == "Yes":
-                    logging.info(f"Etape 7 : Worker is finished with is job and told the dispatcher")
+                if answer == "Yes" : 
+                    logging.info(f"Etape 3 : Worker is free to work")
+                    conn.sendall(b"2223")
+                    try:
+                        conn.close()
+                        server_socket.close()
+                    except Exception as e:
+                        logging.debug(e)
                     
-            if answer == "No" :
-                logging.info(f"Etape 3 : Worker is too busy to work")
-                conn.sendall(b"-1")
-                try:
-                    conn.close()
-                    server_socket.close()
-                except Exception as e:
-                    logging.debug(e)
-        
-        except ConnectionResetError:
-            logging.debug("Client disconnected unexpectedly.")
-            break
+                    
+                    with open('shared_memory.txt', 'w') as f :
+                        f.write("Are you done ?")
+                
+                    with open('dwtube1', 'w') as fifo_out: 
+                        fifo_out.write('ping')
+                        
+                    with open('wdtube1', 'r') as fifo_in:
+                        logging.info(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
+                    
+                    with open('shared_memory.txt', 'r') as f: 
+                        is_worker_done = f.read()
+                    
+                    logging.info(f"Dispatcher read: {is_worker_done}")
+                    if is_worker_done == "Yes":
+                        logging.info(f"Etape 7 : Worker is finished with his job and told the dispatcher")
+                        
+                if answer == "No" :
+                    logging.info(f"Etape 3 : Worker is too busy to work")
+                    conn.sendall(b"-1")
+                    try:
+                        conn.close()
+                        server_socket.close()
+                    except Exception as e:
+                        logging.debug(e)
+            
+            except ConnectionResetError:
+                logging.debug("Client disconnected unexpectedly.")
+                break
     try : 
         conn.close()
         server_socket.close()

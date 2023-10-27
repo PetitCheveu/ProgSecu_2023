@@ -79,6 +79,9 @@ def run_worker():
                     f.write("Yes")
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
+        elif question == "":
+            with open('wdtube1', 'w') as fifo_in:
+                fifo_in.write('pong')
 
     
         
