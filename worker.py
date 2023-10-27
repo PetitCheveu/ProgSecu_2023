@@ -22,6 +22,8 @@ def run_worker():
             stop_fifo_in = os.open('stop_tube', os.O_RDONLY | os.O_NONBLOCK)
             stop_msg = os.read(stop_fifo_in, 4).decode()
             if stop_msg == 'stop':
+                with open('wdtube1', 'w') as fifo_in:
+                    fifo_in.write('stop')  
                 logging.info("Worker received stop signal. Exiting.")
                 break
         except BlockingIOError:
