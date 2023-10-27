@@ -12,14 +12,6 @@ def run_dispatcher():
 
     while True:
         try:
-            fifo_in = os.open('wdtube1', os.O_RDONLY | os.O_NONBLOCK)
-            stop_msg = os.read(fifo_in, 4).decode()
-            if stop_msg == 'stop': 
-                logging.info("Dispatcher received stop signal. Exiting.")
-                break
-        except BlockingIOError:
-            pass
-        try:
             # Checking that the connexion is possible and that the port is correctly closed
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -29,8 +21,10 @@ def run_dispatcher():
             logging.warning(f"Port 2222 is already in use. Closing the previous socket and retrying.")
             if server_socket:
                 server_socket.close()
+            os.kill(pid, signal.SIGTERM)
+            logging.info("Dispatcher process terminated.")
             time.sleep(1)  # Wait for a short time before retrying
-            continue
+            break
         
         conn, addr = server_socket.accept()
         server_socket.close()
