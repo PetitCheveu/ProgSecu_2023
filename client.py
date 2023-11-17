@@ -11,6 +11,7 @@ def run_client():
             client_socket.settimeout(3.0)
             client_socket.connect(('localhost', 2222))
             try:
+                abort = False
                 requete = random.randint(1, 2)
                 if requete == 1:
                     requete_type = "requetetype1"

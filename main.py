@@ -3,7 +3,7 @@ import logging
 import client 
 import watchdog
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 if __name__ == '__main__':

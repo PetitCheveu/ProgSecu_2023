@@ -1,14 +1,23 @@
 import socket
 import select
 import logging
+import mmap
 
-import utils
 import datetime
 
 def run_worker():
     logging.info("Worker started.")
-    
-    utils.touch('shared_memory.txt')
+
+    shared_memory_file = '/tmp/shared_memory'
+    SHARED_MEMORY_SIZE = 1024
+
+    with open(shared_memory_file, 'rb+') as f:
+        f.seek(SHARED_MEMORY_SIZE - 1)
+        f.write(b'\x00')
+        f.flush()
+
+    with open(shared_memory_file, 'r+b') as f:
+        shared_memory = mmap.mmap(f.fileno(), SHARED_MEMORY_SIZE)
     
     conn = None
     connected = False
@@ -17,14 +26,23 @@ def run_worker():
         with open('dwtube1', 'r') as fifo_out:
             logging.info(f"Worker received from Dispatcher: {fifo_out.read().strip()}")
 
-        with open('shared_memory.txt', 'r') as f :
-            question = f.read()
+        shared_memory.seek(0)
+        question = shared_memory.read(SHARED_MEMORY_SIZE).decode().strip('\x00')
+
         if question == "Are you free for a connexion ?" :
-            logging.info(f"Etape 2 : Worker is asked for disponibility")
+            logging.debug(f"Etape 2 : Worker is asked for disponibility")
         
-            if connected == False : 
-                with open('shared_memory.txt', 'w') as f :
-                    f.write("Yes")
+            if connected == False :
+                shared_memory.seek(0)
+                shared_memory.write(b'\x00' * SHARED_MEMORY_SIZE)
+                
+                shared_memory.seek(0)
+                shared_memory.write(b"Yes\x00")
+
+                shared_memory.seek(0)
+                writen = shared_memory.read(SHARED_MEMORY_SIZE).decode().strip('\x00')
+                logging.debug(f"Writen memory {writen}")
+
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')     
                 
@@ -38,14 +56,14 @@ def run_worker():
                 if ready:
     
                     conn, addr = worker_socket.accept()
-                    logging.info(f"Etape 5 : Worker connected to client at {addr}")
+                    logging.debug(f"Etape 5 : Worker connected to client at {addr}")
                     connected = True
                     while True:
                         data = conn.recv(1024)
                         request = data.decode()
                         if not data:
                             break
-                        logging.info(f"Etape 5 : Worker received: {request}")
+                        logging.debug(f"Etape 5 : Worker received: {request}")
                         
                         now = datetime.datetime.now()
                         message = "no response"
@@ -62,17 +80,23 @@ def run_worker():
                 if conn is not None : 
                     conn.close()
                 connected = False
-            else : 
-                with open('shared_memory.txt', 'w') as f :
-                    f.write("No")
+            else :
+                shared_memory.seek(0)
+                shared_memory.write(b'\x00' * SHARED_MEMORY_SIZE)
+                shared_memory.seek(0)
+                shared_memory.write(b"No\x00")
+
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
                     
         elif question == "Are you done ?":
             if connected == False : 
                 logging.info(f"Worker read: {question}")
-                with open('shared_memory.txt', 'w') as f :
-                    f.write("Yes")
+                shared_memory.seek(0)
+                shared_memory.write(b'\x00' * SHARED_MEMORY_SIZE)
+                shared_memory.seek(0)
+                shared_memory.write(b"Yes\x00")
+
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
         elif question == "":

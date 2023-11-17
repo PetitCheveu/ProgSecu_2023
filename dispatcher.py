@@ -3,8 +3,24 @@ import socket
 import select
 import logging
 
+import mmap
+import os
+
 def run_dispatcher():
     logging.info("Dispatcher started.")
+
+    shared_memory_file = '/tmp/shared_memory'
+    SHARED_MEMORY_SIZE = 1024
+
+    if not os.path.exists('/tmp'):
+        os.makedirs('/tmp')
+
+    with open(shared_memory_file, 'wb') as f:
+        f.truncate(SHARED_MEMORY_SIZE)
+
+    with open(shared_memory_file, 'r+b') as f:
+        shared_memory = mmap.mmap(f.fileno(), SHARED_MEMORY_SIZE)
+
     try : 
         watchdog_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         watchdog_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -38,7 +54,7 @@ def run_dispatcher():
             server_socket.bind(('localhost', 2222))
             server_socket.listen(1)
         except OSError as e:
-            logging.warning(f"Port 2222 is already in use. Closing the previous socket and retrying.")
+            logging.warning(f"Port 2222 is already in use. Closing the previous socket and retrying.\n\n{e}")
             logging.info("Dispatcher process terminated.")
             break
             
@@ -77,26 +93,30 @@ def run_dispatcher():
                         break
                 time.sleep(0.1)
         if conn is not None:
-            logging.info(f"Etape 1 : Dispatcher connected to client at {addr}")
+            logging.debug(f"Etape 1 : Dispatcher connected to client at {addr}")
             try:
                 data = conn.recv(1024)
                 if not data:
                     break
                 request_from_client = data.decode()
-                logging.info(f"Etape 1 : Dispatcher received: {request_from_client}")
-                                
-                with open('shared_memory.txt', 'w') as f :
-                    f.write("Are you free for a connexion ?")
+                logging.debug(f"Etape 1 : Dispatcher received: {request_from_client}")
+
+                shared_memory.seek(0)
+                shared_memory.write(b'\x00' * SHARED_MEMORY_SIZE)
+                shared_memory.seek(0)
+                shared_memory.write(b"Are you free for a connexion ?\x00")
                 
                 with open('dwtube1', 'w') as fifo_out: 
                     fifo_out.write('ping')
                 with open('wdtube1', 'r') as fifo_in:
-                    logging.info(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
-                with open('shared_memory.txt', 'r') as f: 
-                    answer = f.read()
+                    logging.debug(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
+                
+                shared_memory.seek(0)
+                answer = shared_memory.read(SHARED_MEMORY_SIZE).decode().strip('\x00')
+
                 
                 if answer == "Yes" : 
-                    logging.info(f"Etape 3 : Worker is free to work")
+                    logging.debug(f"Etape 3 : Worker is free to work")
                     conn.sendall(b"2223")
                     try:
                         conn.close()
@@ -104,9 +124,11 @@ def run_dispatcher():
                     except Exception as e:
                         logging.debug(e)
                     
-                    
-                    with open('shared_memory.txt', 'w') as f :
-                        f.write("Are you done ?")
+
+                    shared_memory.seek(0)
+                    shared_memory.write(b'\x00' * SHARED_MEMORY_SIZE)                   
+                    shared_memory.seek(0)
+                    shared_memory.write(b"Are you done ?\x00")
                 
                     with open('dwtube1', 'w') as fifo_out: 
                         fifo_out.write('ping')
@@ -114,8 +136,8 @@ def run_dispatcher():
                     with open('wdtube1', 'r') as fifo_in:
                         logging.info(f"Dispatcher received from Worker: {fifo_in.read().strip()}")
                     
-                    with open('shared_memory.txt', 'r') as f: 
-                        is_worker_done = f.read()
+                    shared_memory.seek(0)
+                    is_worker_done = shared_memory.read(SHARED_MEMORY_SIZE).decode().strip('\x00')
                     
                     logging.info(f"Dispatcher read: {is_worker_done}")
                     if is_worker_done == "Yes":
