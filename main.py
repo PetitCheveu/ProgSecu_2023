@@ -1,8 +1,6 @@
 import logging
 
 import client 
-import dispatcher
-import worker
 import watchdog
 
 logging.basicConfig(level=logging.INFO)

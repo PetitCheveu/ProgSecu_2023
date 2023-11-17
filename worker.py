@@ -1,8 +1,4 @@
-import os
-import time
 import socket
-import json
-import random
 import select
 import logging
 
@@ -18,17 +14,6 @@ def run_worker():
     connected = False
     
     while True:
-        try:
-            stop_fifo_in = os.open('stop_tube', os.O_RDONLY | os.O_NONBLOCK)
-            stop_msg = os.read(stop_fifo_in, 4).decode()
-            if stop_msg == 'stop':
-                with open('wdtube1', 'w') as fifo_in:
-                    fifo_in.write('stop')  
-                logging.info("Worker received stop signal. Exiting.")
-                break
-        except BlockingIOError:
-            pass
-
         with open('dwtube1', 'r') as fifo_out:
             logging.info(f"Worker received from Dispatcher: {fifo_out.read().strip()}")
 
@@ -90,6 +75,9 @@ def run_worker():
                     f.write("Yes")
                 with open('wdtube1', 'w') as fifo_in:
                     fifo_in.write('pong')
+        elif question == "":
+            with open('wdtube1', 'w') as fifo_in:
+                fifo_in.write('pong')
 
     
         

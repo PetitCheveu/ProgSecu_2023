@@ -1,9 +1,5 @@
-import os
-import time
 import socket
-import json
 import random
-import select
 import logging
 
 def run_client():
@@ -12,6 +8,7 @@ def run_client():
     try : 
         while True:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.settimeout(3.0)
             client_socket.connect(('localhost', 2222))
             try:
                 requete = random.randint(1, 2)
@@ -30,6 +27,7 @@ def run_client():
                     logging.info(f"Etape 4 : Client received secondary port: {secondary_port}")
 
                     secondary_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    secondary_socket.settimeout(3.0)
                     secondary_socket.connect(('localhost', secondary_port))
                     logging.info("Etape 5 : Client connected to secondary server.")
 
@@ -41,6 +39,9 @@ def run_client():
                     logging.info(f"Etape 6 : Client received from secondary server: {data.decode()}")
                 else : 
                     abort = True
+            except socket.error as se:
+                logging.error(f"Timeout, closing client: {e}")
+                abort = True
             except Exception as e:
                 logging.error(f"An error occurred: {str(e)}")
 
