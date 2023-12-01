@@ -43,9 +43,9 @@ The worker processes requests and sends responses back to the client.
 
 ## Authors
 
-[](https://www.linkedin.com/in/elena-beylat-166333234/) **Elena Beylat**
+[**Elena Beylat**](https://www.linkedin.com/in/elena-beylat-166333234/)
 
-[](https://www.linkedin.com/in/robinjoseph-8259/) **Robin Joseph**
+[**Robin Joseph**](https://www.linkedin.com/in/robinjoseph-8259/)
 
 ---
 ---
@@ -97,6 +97,6 @@ Choose an option : 2
 
 ## Auteurs
 
-[](https://www.linkedin.com/in/elena-beylat-166333234/) **Elena Beylat**
+[**Elena Beylat**](https://www.linkedin.com/in/elena-beylat-166333234/)
 
-[](https://www.linkedin.com/in/robinjoseph-8259/) **Robin Joseph**
+[**Robin Joseph**](https://www.linkedin.com/in/robinjoseph-8259/)
