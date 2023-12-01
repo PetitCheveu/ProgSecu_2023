@@ -4,7 +4,7 @@
 
 ## Description
 
-This project, carried out as part of the Systems and Secure Programming teaching unit at INSA Hauts-de-France, involves the development of a client-server architecture in Python 3. The architecture comprises a main server (dispatcher), secondary servers (workers), a watch-dog process and a client-server.
+This project, carried out as part of the Systems and Secure Programming teaching unit at INSA Hauts-de-France, involves the development of a client-server architecture in Python 3. The architecture consists of a main server (dispatcher), a secondary server (worker), a watch-dog process and a client-server.
 
 ## Components
 
