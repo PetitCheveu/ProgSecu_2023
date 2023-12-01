@@ -114,7 +114,7 @@ def run_watchdog():
                 
                 # Create a socket for communication with the Dispatcher
                 watchdog_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                watchdog_socket.settimeout(4.0)
+                watchdog_socket.settimeout(1.0)
                 dispatcher_address = ('localhost', 2224)
                 watchdog_socket.connect(dispatcher_address)
                 
@@ -142,8 +142,8 @@ def run_watchdog():
                         close_processes(pid, worker_pid)
                         run_watchdog()
                         
-                    # Sleep for 5 seconds before the next iteration
-                    time.sleep(5)
+                    # Sleep for 0.5 seconds before the next iteration
+                    time.sleep(0.5)
 
             except KeyboardInterrupt:
                 # If Ctrl+C is pressed, close processes and exit
